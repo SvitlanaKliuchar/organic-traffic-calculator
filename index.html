@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Organic Traffic Growth Calculator</title>
+    <!-- Tailwind via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      html, body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
+    </style>
+  </head>
+  <body class="min-h-screen bg-gradient-to-br from-blue-50 to-pink-50">
+    <div id="root" class="py-10"></div>
+
+    <!-- React 18 + ReactDOM UMD -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <!-- Babel so we can keep JSX in a single file -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="text/babel">
+      const { useState } = React;
+
+      // Minimal inline icon components (SVG) so no bundler is required
+      const IconWrap = ({ children, className = "w-4 h-4" }) => (
+        <span className={className} aria-hidden="true">{children}</span>
+      );
+      const UsersIcon = ({ className = "w-4 h-4 text-blue-600" }) => (
+        <IconWrap className={className}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+        </IconWrap>
+      );
+      const TrendingUpIcon = ({ className = "w-4 h-4 text-green-600" }) => (
+        <IconWrap className={className}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/>
+            <polyline points="17 6 23 6 23 12"/>
+          </svg>
+        </IconWrap>
+      );
+      const DollarIcon = ({ className = "w-4 h-4 text-blue-600" }) => (
+        <IconWrap className={className}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="1" x2="12" y2="23"/>
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+        </IconWrap>
+      );
+      const TargetIcon = ({ className = "w-5 h-5 text-pink-600" }) => (
+        <IconWrap className={className}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <circle cx="12" cy="12" r="6"/>
+            <circle cx="12" cy="12" r="2"/>
+          </svg>
+        </IconWrap>
+      );
+
+      function clampNumber(n, fallback = 0) {
+        const v = Number(n);
+        return Number.isFinite(v) ? v : fallback;
+      }
+
+      function formatNumber(n) {
+        return Math.round(n).toLocaleString();
+      }
+      function formatCurrency(n) {
+        return '$' + Math.round(n).toLocaleString();
+      }
+      function formatPercent(n) {
+        return (Number(n).toFixed(1)) + '%';
+      }
+
+      const multipliers = {
+        1: {
+          conservative: { 3: 1.08, 6: 1.15, 9: 1.25, 12: 1.35, 15: 1.45, 18: 1.60, 21: 1.70, 24: 1.85 },
+          highPotential: { 3: 1.15, 6: 1.35, 9: 1.55, 12: 1.77, 15: 2.00, 18: 2.30, 21: 2.60, 24: 3.00 }
+        },
+        2: {
+          conservative: { 3: 1.12, 6: 1.30, 9: 1.55, 12: 1.85, 15: 2.20, 18: 2.60, 21: 3.00, 24: 3.50 },
+          highPotential: { 3: 1.20, 6: 1.60, 9: 2.20, 12: 3.00, 15: 4.00, 18: 5.18, 21: 6.50, 24: 8.00 }
+        },
+        3: {
+          conservative: { 3: 1.15, 6: 1.45, 9: 1.85, 12: 2.40, 15: 3.00, 18: 3.70, 21: 4.50, 24: 5.50 },
+          highPotential: { 3: 1.25, 6: 1.85, 9: 2.80, 12: 4.00, 15: 5.50, 18: 7.00, 21: 9.00, 24: 11.00 }
+        },
+        4: {
+          conservative: { 3: 1.18, 6: 1.60, 9: 2.20, 12: 3.00, 15: 3.90, 18: 5.00, 21: 6.20, 24: 7.50 },
+          highPotential: { 3: 1.30, 6: 2.10, 9: 3.50, 12: 5.50, 15: 7.50, 18: 9.50, 21: 12.00, 24: 14.00 }
+        }
+      };
+
+      function CaseStudyText({ months }) {
+        let text = "See how long-term content strategies create compounding growth";
+        if (months <= 3) text = "Similar to our beauty salon client who achieved 31% organic traffic increase in just 3 months";
+        else if (months <= 6) text = "See how businesses grow with 6 months of consistent content marketing";
+        else if (months <= 12) text = "Similar to our car dealership client who grew 76.7% in 12-16 months";
+        else if (months <= 18) text = "Similar to our furniture store client who achieved 417.8% growth in 16 months";
+        else if (months <= 21) text = "Similar to our wine store client who reached 1,100% traffic increase in 21 months";
+        return <p className="text-sm text-gray-600">{text}</p>;
+      }
+
+      function OrganicTrafficCalculator() {
+        const [inputs, setInputs] = useState({
+          currentTraffic: '',
+          averageOrderValue: '',
+          conversionRate: 2,
+          campaignsPerMonth: 2,
+          timePeriod: 12,
+          costPerClick: 3.5
+        });
+        const [results, setResults] = useState(null);
+
+        function onChangeNumber(key) {
+          return (e) => setInputs((s) => ({ ...s, [key]: e.target.value }));
+        }
+        function onChangeInt(key) {
+          return (e) => setInputs((s) => ({ ...s, [key]: parseInt(e.target.value, 10) }));
+        }
+
+        function calculateResults() {
+          const currentTraffic = clampNumber(inputs.currentTraffic);
+          const averageOrderValue = clampNumber(inputs.averageOrderValue);
+          const conversionRate = clampNumber(inputs.conversionRate, 2);
+          const campaignsPerMonth = clampNumber(inputs.campaignsPerMonth, 2);
+          const timePeriod = clampNumber(inputs.timePeriod, 12);
+          const costPerClick = clampNumber(inputs.costPerClick, 3.5);
+
+          if (!currentTraffic || !averageOrderValue) {
+            alert('Please fill in all required fields');
+            return;
+          }
+
+          const conservativeMultiplier = multipliers[campaignsPerMonth].conservative[timePeriod];
+          const highPotentialMultiplier = multipliers[campaignsPerMonth].highPotential[timePeriod];
+
+          const currentRevenue = currentTraffic * (conversionRate / 100) * averageOrderValue;
+
+          // Conservative
+          const conservativeTraffic = currentTraffic * conservativeMultiplier;
+          const conservativeNewVisitors = conservativeTraffic - currentTraffic;
+          const conservativeIncreasePercent = ((conservativeTraffic - currentTraffic) / currentTraffic) * 100;
+          const conservativeRevenue = conservativeTraffic * (conversionRate / 100) * averageOrderValue;
+          const conservativeRevenueIncrease = conservativeRevenue - currentRevenue;
+          const conservativeAnnualIncrease = conservativeRevenueIncrease * 12;
+          const conservativePaidAdsValue = conservativeNewVisitors * 12 * costPerClick;
+
+          // High potential
+          const highPotentialTraffic = currentTraffic * highPotentialMultiplier;
+          const highPotentialNewVisitors = highPotentialTraffic - currentTraffic;
+          const highPotentialIncreasePercent = ((highPotentialTraffic - currentTraffic) / currentTraffic) * 100;
+          const highPotentialRevenue = highPotentialTraffic * (conversionRate / 100) * averageOrderValue;
+          const highPotentialRevenueIncrease = highPotentialRevenue - currentRevenue;
+          const highPotentialAnnualIncrease = highPotentialRevenueIncrease * 12;
+          const highPotentialPaidAdsValue = highPotentialNewVisitors * 12 * costPerClick;
+
+          setResults({
+            conservative: {
+              traffic: conservativeTraffic,
+              newVisitors: conservativeNewVisitors,
+              increasePercent: conservativeIncreasePercent,
+              monthlyRevenue: conservativeRevenue,
+              revenueIncrease: conservativeRevenueIncrease,
+              annualIncrease: conservativeAnnualIncrease,
+              paidAdsValue: conservativePaidAdsValue
+            },
+            highPotential: {
+              traffic: highPotentialTraffic,
+              newVisitors: highPotentialNewVisitors,
+              increasePercent: highPotentialIncreasePercent,
+              monthlyRevenue: highPotentialRevenue,
+              revenueIncrease: highPotentialRevenueIncrease,
+              annualIncrease: highPotentialAnnualIncrease,
+              paidAdsValue: highPotentialPaidAdsValue
+            }
+          });
+        }
+
+        return (
+          <div className="w-full max-w-6xl mx-auto px-6">
+            {/* Header */}
+            <div className="text-center mb-8">
+              <div className="flex justify-center items-center gap-1 mb-3 select-none">
+                <span className="text-4xl font-extrabold" style={{ color: '#e91d63' }}>Ampi</span>
+                <span className="text-4xl font-extrabold" style={{ color: '#021765' }}>Fire</span>
+              </div>
+              <h1 className="text-3xl font-bold text-gray-800 mb-2">Organic Traffic Growth Calculator</h1>
+              <p className="text-gray-600">See how much your traffic could grow with AmpiFire</p>
+            </div>
+
+            {/* Inputs */}
+            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2">Current Monthly Organic Traffic *</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    value={inputs.currentTraffic}
+                    onChange={onChangeNumber('currentTraffic')}
+                    placeholder="5000"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  />
+                  <p className="text-sm text-gray-500 mt-1">How many visitors come from search engines each month?</p>
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2">Average Order Value *</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-3 text-gray-500">$</span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={inputs.averageOrderValue}
+                      onChange={onChangeNumber('averageOrderValue')}
+                      placeholder="150"
+                      className="w-full pl-8 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                    />
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1">What is your average sale amount?</p>
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2">Current Conversion Rate</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step="0.1"
+                      inputMode="decimal"
+                      value={inputs.conversionRate}
+                      onChange={onChangeNumber('conversionRate')}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                    />
+                    <span className="absolute right-3 top-3 text-gray-500">%</span>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1">Percent of visitors who buy.</p>
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2">Cost Per Click (for comparison)</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-3 text-gray-500">$</span>
+                    <input
+                      type="number"
+                      step="0.1"
+                      inputMode="decimal"
+                      value={inputs.costPerClick}
+                      onChange={onChangeNumber('costPerClick')}
+                      className="w-full pl-8 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                    />
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1">Average CPC for comparison. Default is $3.50.</p>
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 font-semibold mb-2">Campaigns Per Month</label>
+                  <select
+                    value={inputs.campaignsPerMonth}
+                    onChange={onChangeInt('campaignsPerMonth')}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  >
+                    <option value={1}>1 campaign/month</option>
+                    <option value={2}>2 campaigns/month</option>
+                    <option value={3}>3 campaigns/month</option>
+                    <option value={4}>4 campaigns/month</option>
+                  </select>
+                  <p className="text-sm text-gray-500 mt-1">How many content campaigns will you publish?</p>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-gray-700 font-semibold mb-2">Time Period</label>
+                  <select
+                    value={inputs.timePeriod}
+                    onChange={onChangeInt('timePeriod')}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  >
+                    <option value={3}>3 months</option>
+                    <option value={6}>6 months</option>
+                    <option value={9}>9 months</option>
+                    <option value={12}>12 months</option>
+                    <option value={15}>15 months</option>
+                    <option value={18}>18 months</option>
+                    <option value={21}>21 months</option>
+                    <option value={24}>24 months</option>
+                  </select>
+                  <p className="text-sm text-gray-500 mt-1">How long will you run campaigns?</p>
+                </div>
+              </div>
+
+              <button
+                onClick={calculateResults}
+                className="w-full mt-6 bg-gradient-to-r from-pink-600 to-pink-700 text-white font-bold py-4 px-6 rounded-lg hover:from-pink-700 hover:to-pink-800 transition duration-200 shadow-lg"
+              >
+                Calculate Traffic Potential
+              </button>
+            </div>
+
+            {results && (
+              <div className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-6">
+                  {/* Conservative */}
+                  <div className="bg-white rounded-lg shadow-lg p-6 border-t-4 border-blue-500">
+                    <div className="text-center mb-4">
+                      <h2 className="text-2xl font-bold text-blue-700 mb-1">Conservative Estimate</h2>
+                      <p className="text-sm text-gray-600">Typical results from consistent campaigns</p>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="border-b pb-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <UsersIcon />
+                          <p className="text-sm text-gray-600">Projected Monthly Traffic</p>
+                        </div>
+                        <p className="text-2xl font-bold text-gray-800">{formatNumber(results.conservative.traffic)} visitors/month</p>
+                      </div>
+
+                      <div className="border-b pb-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <TrendingUpIcon />
+                          <p className="text-sm text-gray-600">Traffic Increase</p>
+                        </div>
+                        <p className="text-xl font-bold text-green-600">+{formatNumber(results.conservative.newVisitors)} visitors (+{formatPercent(results.conservative.increasePercent)})</p>
+                      </div>
+
+                      <div className="border-b pb-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <DollarIcon />
+                          <p className="text-sm text-gray-600">Projected Monthly Revenue</p>
+                        </div>
+                        <p className="text-2xl font-bold text-gray-800">{formatCurrency(results.conservative.monthlyRevenue)}/month</p>
+                      </div>
+
+                      <div className="border-b pb-3">
+                        <p className="text-sm text-gray-600 mb-1">Monthly Revenue Increase</p>
+                        <p className="text-xl font-bold text-green-600">+{formatCurrency(results.conservative.revenueIncrease)}/month</p>
+                      </div>
+
+                      <div className="border-b pb-3">
+                        <p className="text-sm text-gray-600 mb-1">Annual Revenue Increase</p>
+                        <p className="text-2xl font-bold text-gray-800">{formatCurrency(results.conservative.annualIncrease)}/year</p>
+                      </div>
+
+                      <div className="bg-blue-50 p-3 rounded">
+                        <p className="text-sm text-gray-600 mb-1">Paid Ads Equivalent Value</p>
+                        <p className="text-xl font-bold text-blue-700">{formatCurrency(results.conservative.paidAdsValue)}/year</p>
+                        <p className="text-xs text-gray-500 mt-1">(Cost if paying ${Number(inputs.costPerClick || 0).toFixed(2)} per click)</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* High Potential */}
+                  <div className="bg-white rounded-lg shadow-lg p-6 border-t-4 border-pink-500">
+                    <div className="text-center mb-4">
+                      <h2 className="text-2xl font-bold text-pink-700 mb-1">High Potential</h2>
+                      <p className="text-sm text-gray-600">Based on top-performing clients</p>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="border-b pb-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <UsersIcon className="w-4 h-4 text-pink-600" />
+                          <p className="text-sm text-gray-600">Projected Monthly Traffic</p>
+                        </div>
+                        <p className="text-2xl font-bold text-gray-800">{formatNumber(results.highPotential.traffic)} visitors/month</p>
+                      </div>
+
+                      <div className="border-b pb-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <TrendingUpIcon />
+                          <p className="text-sm text-gray-600">Traffic Increase</p>
+                        </div>
+                        <p className="text-xl font-bold text-green-600">+{formatNumber(results.highPotential.newVisitors)} visitors (+{formatPercent(results.highPotential.increasePercent)})</p>
+                      </div>
+
+                      <div className="border-b pb-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <DollarIcon className="w-4 h-4 text-pink-600" />
+                          <p className="text-sm text-gray-600">Projected Monthly Revenue</p>
+                        </div>
+                        <p className="text-2xl font-bold text-gray-800">{formatCurrency(results.highPotential.monthlyRevenue)}/month</p>
+                      </div>
+
+                      <div className="border-b pb-3">
+                        <p className="text-sm text-gray-600 mb-1">Monthly Revenue Increase</p>
+                        <p className="text-xl font-bold text-green-600">+{formatCurrency(results.highPotential.revenueIncrease)}/month</p>
+                      </div>
+
+                      <div className="border-b pb-3">
+                        <p className="text-sm text-gray-600 mb-1">Annual Revenue Increase</p>
+                        <p className="text-2xl font-bold text-gray-800">{formatCurrency(results.highPotential.annualIncrease)}/year</p>
+                      </div>
+
+                      <div className="bg-pink-50 p-3 rounded">
+                        <p className="text-sm text-gray-600 mb-1">Paid Ads Equivalent Value</p>
+                        <p className="text-xl font-bold text-pink-700">{formatCurrency(results.highPotential.paidAdsValue)}/year</p>
+                        <p className="text-xs text-gray-500 mt-1">(Cost if paying ${Number(inputs.costPerClick || 0).toFixed(2)} per click)</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Understanding Results */}
+                <div className="bg-white rounded-lg shadow-lg p-6">
+                  <h3 className="text-xl font-bold text-gray-800 mb-4">Understanding Your Results</h3>
+                  <p className="text-gray-700 mb-4">These projections are based on actual AmpiFire client results across multiple industries.</p>
+                  <div className="grid md:grid-cols-2 gap-6 mb-4">
+                    <div>
+                      <h4 className="font-semibold text-blue-700 mb-2">Conservative Estimate</h4>
+                      <p className="text-sm text-gray-600">Represents typical results for brands that publish every month. Reliable, steady growth that most businesses experience with AmpiFire distribution.</p>
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-pink-700 mb-2">High Potential</h4>
+                      <p className="text-sm text-gray-600 mb-2">These outcomes are seen by top performers when they:</p>
+                      <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside">
+                        <li>Publish without gaps</li>
+                        <li>Target high intent keywords</li>
+                        <li>Compete in growing markets</li>
+                        <li>Have quality products and pricing</li>
+                      </ul>
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <TargetIcon />
+                      <div>
+                        <p className="font-semibold text-gray-800 mb-1">Real Client Success</p>
+                        <CaseStudyText months={inputs.timePeriod} />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Disclaimer */}
+                <div className="bg-gray-100 rounded-lg p-4">
+                  <p className="text-xs text-gray-600 text-center">Results vary by competition, product quality, pricing, site optimization, and consistency. Conservative estimates reflect typical results. High potential shows what is possible with strong execution. No guarantees.</p>
+                </div>
+
+                {/* CTA */}
+                <div className="bg-gradient-to-r from-pink-600 to-blue-600 rounded-lg shadow-xl p-8 text-center text-white">
+                  <h3 className="text-2xl font-bold mb-2">Ready to grow your organic traffic?</h3>
+                  <p className="mb-6">See how AmpiFire multi channel distribution can grow search traffic without paid ads.</p>
+                  <a
+                    href="https://now.ampifire.com/start?utm_source=websiteblog&utm_medium=calculator"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block bg-white text-pink-600 font-bold py-4 px-8 rounded-lg hover:bg-gray-100 transition duration-200 shadow-lg"
+                  >
+                    Get your free strategy session
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById('root'));
+      root.render(<OrganicTrafficCalculator />);
+    </script>
+  </body>
+</html>
