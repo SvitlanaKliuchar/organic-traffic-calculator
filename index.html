@@ -263,16 +263,15 @@
 
                 <div>
                   <label className="block text-gray-700 font-semibold mb-2">Campaigns Per Month</label>
-                  <select
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    min="1"
+                    step="1"
                     value={inputs.campaignsPerMonth}
-                    onChange={onChangeInt('campaignsPerMonth')}
+                    onChange={onChangeNumber('campaignsPerMonth')}
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                  >
-                    <option value={1}>1 campaign/month</option>
-                    <option value={2}>2 campaigns/month</option>
-                    <option value={3}>3 campaigns/month</option>
-                    <option value={4}>4 campaigns/month</option>
-                  </select>
+                  />
                   <p className="text-sm text-gray-500 mt-1">How many content campaigns will you publish?</p>
                 </div>
 
